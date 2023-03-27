@@ -3,7 +3,28 @@ import bodyParser from "body-parser";
 import fetch from "node-fetch";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import _ from "lodash"
+import _ from "lodash";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+dotenv.config();
+
+const mongoPassword = process.env.MONGO_PASSWORD;
+async function connectToDb() {
+  try {
+    await mongoose.connect(
+      `mongodb+srv://admin:${mongoPassword}@cluster0.ruawe0b.mongodb.net/?retryWrites=true&w=majority`,
+      {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      }
+    );
+    console.log("connected to DB");
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+connectToDb();
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -21,16 +42,57 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-
-const posts = [];
-
+const postSchema = new mongoose.Schema({
+  title: String,
+  content: String,
+});
+const Post = mongoose.model("Post", postSchema);
 
 // connect root
-app.get("/", (req, res) => {
-  res.render("home", {
-    homeStartingContent: homeStartingContent,
-    posts: posts,
-  });
+app.get("/", async (req, res) => {
+  try {
+    const posts = await Post.find();
+    res.render("home", {
+      homeStartingContent: homeStartingContent,
+      posts: posts,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+});
+
+app.get("/compose", (req, res) => {
+  res.render("compose");
+});
+
+app.get("/posts/:title", async (req, res) => {
+  const requestedId = req.params.title;
+
+  try {
+    const showPost = await Post.findOne({ _id: requestedId });
+    res.render("post", { showPost: showPost });
+  } catch (error) {
+    console.log(error);
+  }
+});
+
+app.post("/compose", async (req, res) => {
+  const title = req.body.title;
+  const content = req.body.content;
+
+  try {
+    await Post.create({
+      title: title,
+      content: content,
+    });
+    res.redirect("/");
+  } catch (error) {
+    console.log(error);
+  }
+});
+
+app.listen(3000, function () {
+  console.log("Server started on port 3000");
 });
 
 app.get("/about", (req, res) => {
@@ -38,38 +100,4 @@ app.get("/about", (req, res) => {
 });
 app.get("/contact", (req, res) => {
   res.render("contact", { contactContent: contactContent });
-});
-
-app.get("/compose", (req, res) => {
-  res.render("compose");
-});
-
-
-
-app.get("/posts/:title", (req, res) => {
-  const requestedTitle = _.lowerCase(req.params.title)
-
-  const showPost = posts.find((post) => {
-    return _.lowerCase(post.title) === requestedTitle
-  })
-
-  res.render("post", {showPost: showPost})
-})
-
-
-
-app.post("/compose", (req, res) => {
-  const title = req.body.title;
-  const content = req.body.content;
-
-  const post = {
-    title: title,
-    content: content,
-  };
-  posts.push(post);
-  res.redirect("/");
-});
-
-app.listen(3000, function () {
-  console.log("Server started on port 3000");
 });
