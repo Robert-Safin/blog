@@ -98,6 +98,7 @@ app.listen(3000, function () {
 app.get("/about", (req, res) => {
   res.render("about", { aboutContent: aboutContent });
 });
+
 app.get("/contact", (req, res) => {
   res.render("contact", { contactContent: contactContent });
 });
